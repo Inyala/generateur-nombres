@@ -1,0 +1,255 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Générateur de Nombres Aléatoires</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #121212;
+      color: #f0f0f0;
+    }
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background: #1e1e1e;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(255,255,255,0.05);
+    }
+    h2 {
+      text-align: center;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+    }
+    input, select {
+      width: 100%;
+      padding: 8px;
+      margin-top: 4px;
+      background: #2c2c2c;
+      color: #f0f0f0;
+      border: 1px solid #444;
+      border-radius: 4px;
+    }
+    .fraction-container {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 20px;
+      align-items: center;
+    }
+    .fraction-min, .fraction-max {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+    }
+    .separator-vertical {
+      width: 1px;
+      background: #444;
+      height: 100%;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px;
+      background: #28a745;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+      margin-right: 10px;
+    }
+    button:hover {
+      background: #218838;
+    }
+    #results {
+      margin-top: 20px;
+      background: #2a2a2a;
+      padding: 10px;
+      border-radius: 5px;
+      color: #ffffff;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h2>🎲 Générateur de Nombres Aléatoires 🎲</h2>
+
+  <div id="minMaxFields">
+    <label for="min">Minimum :</label>
+    <input type="number" id="min" value="1">
+    <label for="max">Maximum :</label>
+    <input type="number" id="max" value="100">
+  </div>
+
+  <div class="fraction-container" id="fractionInputs" style="display:none;">
+    <div class="fraction-min">
+      <label for="fractionNumMin">Numérateur minimum :</label>
+      <input type="number" id="fractionNumMin" value="1">
+      <label for="fractionDenMin">Dénominateur minimum :</label>
+      <input type="number" id="fractionDenMin" value="100">
+    </div>
+    <div class="separator-vertical"></div>
+    <div class="fraction-max">
+      <label for="fractionNumMax">Numérateur maximum :</label>
+      <input type="number" id="fractionNumMax" value="100">
+      <label for="fractionDenMax">Dénominateur maximum :</label>
+      <input type="number" id="fractionDenMax" value="100">
+    </div>
+  </div>
+
+  <label for="count">Nombre de générations :</label>
+  <input type="number" id="count" value="5" min="1" max="1000">
+
+  <label for="mode">Mode :</label>
+  <select id="mode" onchange="toggleBonusMalus()">
+    <option value="normal">Aléatoire pur</option>
+    <option value="bonus">Aléatoire avec bonus</option>
+    <option value="malus">Aléatoire avec malus</option>
+  </select>
+
+  <div id="bonusContainer" style="display: none;">
+    <label for="bonus">Bonus (%) :</label>
+    <input type="number" id="bonus" value="20">
+  </div>
+
+  <div id="malusContainer" style="display: none;">
+    <label for="malus">Malus (%) :</label>
+    <input type="number" id="malus" value="20">
+  </div>
+
+  <label for="type">Type de nombre :</label>
+  <select id="type" onchange="toggleFractionFields()">
+    <option value="float">Nombre à virgule</option>
+    <option value="int">Nombre entier</option>
+    <option value="fraction">Nombre en fraction</option>
+  </select>
+
+  <button onclick="generer()">Générer</button>
+  <button id="downloadBtn" style="display:none;" onclick="telecharger()">Télécharger</button>
+
+  <div id="results"></div>
+</div>
+
+<script>
+function toggleBonusMalus() {
+  const mode = document.getElementById("mode").value;
+  document.getElementById("bonusContainer").style.display = (mode === "bonus") ? "block" : "none";
+  document.getElementById("malusContainer").style.display = (mode === "malus") ? "block" : "none";
+}
+
+function toggleFractionFields() {
+  const type = document.getElementById("type").value;
+  const fracFields = document.getElementById("fractionInputs");
+  const minMaxFields = document.getElementById("minMaxFields");
+  fracFields.style.display = (type === "fraction") ? "flex" : "none";
+  minMaxFields.style.display = (type === "fraction") ? "none" : "block";
+}
+
+function getSecureRandomFloat(min, max) {
+  const array = new Uint32Array(1);
+  window.crypto.getRandomValues(array);
+  const ratio = array[0] / 0xffffffff;
+  return min + ratio * (max - min);
+}
+
+function getSecureRandom(min, max, avoidZero = false) {
+  let value;
+  do {
+    const range = max - min + 1;
+    const array = new Uint32Array(1);
+    window.crypto.getRandomValues(array);
+    value = min + (array[0] % range);
+  } while (avoidZero && value === 0);
+  return value;
+}
+
+function simplifierFraction(n, d) {
+  function pgcd(a, b) {
+    return b ? pgcd(b, a % b) : a;
+  }
+  const div = pgcd(n, d);
+  return `${n / div}/${d / div}`;
+}
+
+function generer() {
+  const count = parseInt(document.getElementById("count").value);
+  const mode = document.getElementById("mode").value;
+  const numberType = document.getElementById("type").value;
+  const bonus = parseFloat(document.getElementById("bonus").value);
+  const malus = parseFloat(document.getElementById("malus").value);
+  const resultsDiv = document.getElementById("results");
+  const downloadBtn = document.getElementById("downloadBtn");
+  let htmlList = "<strong>Résultats :</strong><div>";
+
+  if (count <= 0 || count > 1000) {
+    resultsDiv.innerHTML = "<span style='color:red;'>❗ Vérifie tes valeurs ! Le nombre de générations doit être entre 1 et 1000. ❗</span>";
+    return;
+  }
+
+  const min = parseFloat(document.getElementById("min").value);
+  const max = parseFloat(document.getElementById("max").value);
+  const numMin = parseInt(document.getElementById("fractionNumMin").value);
+  const numMax = parseInt(document.getElementById("fractionNumMax").value);
+  const denMin = parseInt(document.getElementById("fractionDenMin").value);
+  const denMax = parseInt(document.getElementById("fractionDenMax").value);
+
+  const résultats = [];
+
+  for (let i = 0; i < count; i++) {
+    let value = "";
+
+    if (numberType === "fraction") {
+      const num = getSecureRandom(numMin, numMax);
+      const den = getSecureRandom(denMin, denMax, true);
+      value = simplifierFraction(num, den);
+    } else {
+      value = (numberType === "float")
+        ? getSecureRandomFloat(min, max)
+        : getSecureRandom(min, max);
+
+      if (mode === "bonus") value *= (1 + bonus / 100);
+      if (mode === "malus") value *= (1 - malus / 100);
+
+      value = (numberType === "float")
+        ? parseFloat(value).toFixed(2).replace('.', ',')
+        : Math.round(value);
+    }
+
+    résultats.push(value);
+    htmlList += `${i + 1}_ ${value}<br>`;
+  }
+
+  htmlList += "</div>";
+  resultsDiv.innerHTML = htmlList;
+  downloadBtn.style.display = "inline-block";
+}
+
+function telecharger() {
+  const resultText = document.getElementById("results")
+    .innerText
+    .replace("Résultats :", "")
+    .trim()
+    .split("\n")
+    .map(line => line.split("_ ")[1] || line)
+    .join("\n");
+
+  const blob = new Blob([resultText], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const lien = document.createElement("a");
+  lien.href = url;
+  lien.download = "resultats.txt";
+  document.body.appendChild(lien);
+  lien.click();
+  document.body.removeChild(lien);
+  URL.revokeObjectURL(url);
+}
+
+toggleBonusMalus();
+toggleFractionFields();
+</script>
+</body>
+</html>
